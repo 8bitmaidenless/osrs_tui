@@ -14,7 +14,7 @@ import json
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple, List
 
 from osrs_tui.utils.api import _XP_TABLE
 
@@ -101,6 +101,8 @@ class CalcSession:
     selected_actions: list[str] = field(default_factory=list)
 
     results: list["ActionResult"] = field(default_factory=list)
+    aggregate_xp: int = 0 
+    aggregate_actions: int = 0
 
     @property
     def xp_needed(self) -> int:
@@ -166,14 +168,26 @@ class ActionResult:
         ]
     
 
-def calculate(session: CalcSession, all_actions: list[TrainingAction]) -> list[ActionResult]:
+def calculate(session: CalcSession, all_actions: list[TrainingAction]) -> Tuple[List[ActionResult], Tuple[int, int]]:
+    """
+    Returns a tuple of `(results, (agg_xp, agg_actions_needed))`
+    """
     action_map = {a.name: a for a in all_actions}
     results = []
+    actions_xp = []
     for name in session.selected_actions:
         if name not in action_map:
             continue
         action = action_map[name]
+        actions_xp.append(action.xp)
         needed = math.ceil(session.xp_needed / action.xp) if action.xp > 0 else 0
         results.append(ActionResult(action=action, actions_needed=needed))
-    return results
+        actions_xp.append(action.xp)
+    
+    agg_xp = sum(actions_xp)
+    agg_needed = math.ceil(session.xp_needed / agg_xp) if agg_xp > 0 else 0
+    return results, (agg_xp, agg_needed)
+
+    
+
 
