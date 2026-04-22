@@ -12,41 +12,6 @@ from osrs_tui.widgets.stats import PlayerHeader, SkillBars, SkillsTable
 class SkillsScreen(Screen):
     """Displays full hiscore stats for one player."""
 
-    # DEFAULT_CSS = """
-    # SkillsScreen {
-    #     layout: vertical;
-    # }
-    # #loading-container {
-    #     align: center middle;
-    #     height: 1fr;
-    # }
-    # #error-container {
-    #     align: center middle;
-    #     height: 1fr;
-    # }
-    # #error-msg {
-    #     color: $error;
-    #     text-align: center;
-    # }
-    # #stats-body {
-    #     height: 1fr;
-    #     display: none;
-    # }
-    # #skills-col {
-    #     width: 2fr;
-    # }
-    # #bars-col {
-    #     width: 1fr;
-    #     border-left: tall $panel-darken-2;
-    #     overflow-y: auto;
-    # }
-    # #footer-bar {
-    #     height: 1;
-    #     background: $panel-darken-1;
-    #     padding: 0 2;
-    #     color: $text-muted;
-    # }
-    # """
     DEFAULT_CSS = """
     StatsScreen {
         layout: vertical;
@@ -144,7 +109,7 @@ class SkillsScreen(Screen):
 
     async def _load_player(self) -> None:
         try:
-            player = await fetch_player(self._username)
+            player = await fetch_player(self._username, self._account_type)
         except APIError as err:
             self._show_error(str(err))
             return

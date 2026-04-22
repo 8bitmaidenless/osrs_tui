@@ -62,10 +62,10 @@ SKILLS = [
 ]
 
 MODES = {
-    "Ultimate Ironman": "index_lite_ultimate.ws",
-    "Hardcore Ironman": "index_lite_hardcore_ironman.ws",
-    "Ironman": "index_lite_ironman.ws",
-    "Normal": "index_lite.ws",
+    "ultimate": "index_lite_ultimate.ws",
+    "hardcore": "index_lite_hardcore_ironman.ws",
+    "ironman": "index_lite_ironman.ws",
+    "normal": "index_lite.ws",
 }
 
 SKILL_ICONS = {
@@ -156,7 +156,7 @@ class APIError(Exception):
     """Raised when hiscore lookup fails."""
 
 
-async def fetch_player(username: str) -> PlayerData:
+async def fetch_player(username: str, account_type: str = "normal") -> PlayerData:
     """
     Fetch hiscore data for `username` in a thread pool so we don't block 
     the Textual event loop.
@@ -165,7 +165,8 @@ async def fetch_player(username: str) -> PlayerData:
     return await asyncio.get_event_loop().run_in_executor(
         None,
         _blocking_fetch,
-        username
+        username,
+        account_type
     )
 
 
@@ -199,10 +200,10 @@ def _make_sparkline(data: list[int]) -> str:
     )
 
 
-def _blocking_fetch(username: str) -> PlayerData:
+def _blocking_fetch(username: str, account_type: str) -> PlayerData:
     """Synchronous fetch - runs in a thread."""
     try:
-        data = _fetch_hiscore(username)
+        data = _fetch_hiscore(username, account_type)
     except Exception as err:
         raise APIError(f"Could not load '{username}': {err}")
     
@@ -244,28 +245,31 @@ def _blocking_fetch(username: str) -> PlayerData:
     )
 
 
-def _fetch_hiscore(username: str) -> tuple[str, list[dict]]:
-    last_err = None
-    for mode, ep in MODES.items():
-        url = f"{BASE_URL}{ep}?player={username}"
-        try:
-            r = requests.get(url, timeout=5)
-            if r.status_code == 200:
-                lines = r.text.strip().splitlines()
-                stats = []
-                for skill, line in zip(SKILLS, lines):
-                    rank, lvl, xp = map(int, line.split(","))
-                    stats.append({
-                        "skill": skill,
-                        "rank": rank,
-                        "level": lvl,
-                        "xp": xp,
-                    })
-                return mode, stats
-            if r.status_code not in (404,):
-                r.raise_for_status()
-        except Exception as err:
-            last_err = err
-    raise last_err or requests.HTTPError(f"<_fetch_hiscore error> User '{username}' not found.")
+def _fetch_hiscore(username: str, account_type) -> tuple[str, list[dict]]:
+    err = None
+    if account_type not in MODES:
+        raise ValueError(f'Invalid value for `account_type` received: "{account_type}"')
+    ep = MODES[account_type]
+    url = f"{BASE_URL}{ep}?player={username}"
+    try:
+        r = requests.get(url, timeout=5)
+        if r.status_code == 200:
+            lines = r.text.strip().splitlines()
+            stats = []
+            for skill, line in zip(SKILLS, lines):
+                rank, lvl, xp = map(int, line.split(","))
+                stats.append({
+                    "skill": skill,
+                    "rank": rank,
+                    "level": lvl,
+                    "xp": xp,
+                })
+            return account_type, stats
+        if r.status_code not in (404,):
+            r.raise_for_status()
+    except Exception as e:
+        err = e
+    raise err or requests.HTTPError(f"<_fetch_hiscore error> User '{username}' ['{account_type}'] not found.")
+
 
 _XP_TABLE = [_xp_for_level(i) for i in range(1, 100)]

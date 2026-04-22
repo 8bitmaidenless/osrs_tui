@@ -100,9 +100,13 @@ class CalculatorScreen(Screen):
     }
     #skill-select { width: 22; }
     .xp-group { width: 30; height: auto; }
-    .xp-group Label { margin-bottom: 1; color: $text-muted; }
+    .xp-group Label { margin-bottom: 0; color: $text-muted; margin-left: 1; }
     .xp-row { layout: horizontal; height: auto; }
-    .xp-row Input { width: 13; margin-right: 1; }
+    .xp-label { layout: horizontal; }
+    .xp-label-fields { layout: horizontal; width: 30; height: auto; }
+    .xp-label-fields .field { width: 13; content-align: center middle; }
+    .xp-label-fields .spacer { width: 3; content-align: center middle; }
+    .xp-row Input { width: 13; }
     .xp-row Label { width: 3; content-align: center middle; }
     #calc-body {
         height: 1fr;
@@ -133,13 +137,14 @@ class CalculatorScreen(Screen):
     }
     #results-table { height: 1fr; }
     #calc-footer {
-        height: 3;
+        height: auto;
         background: $panel;
         border-top: tall $panel-darken-2;
         layout: horizontal;
         align: left middle;
         padding: 0 2;
     }
+    
     #calc-btn { margin-right: 2; }
     #export-btn { }
     #calc-status { color: $text-muted; margin-left: 2; }
@@ -173,27 +178,31 @@ class CalculatorScreen(Screen):
                     id="skill-select"
                 )
             with Vertical(classes="xp-group"):
-                yield Label("Start    (XP / Level)")
+                yield Label("Start")
                 with Horizontal(classes="xp-row"):
                     yield Input("0", id="start-xp", placeholder="XP")
-                    yield Label(" /")
+                    yield Label(" | ")
                     yield Input("1", id="start-lvl", placeholder="Lvl")
+                with Horizontal(classes="xp-label-fields"):
+                    yield Label("XP", classes="field")
+                    yield Label("", classes="spacer")
+                    yield Label("LVL", classes="field")
+
             with Vertical(classes="xp-group"):
-                yield Label("Target    (XP / Level)")
+                yield Label("Target")
                 with Horizontal(classes="xp-row"):
                     yield Input("0", id="target-xp", placeholder="XP")
-                    yield Label(" /")
+                    yield Label(" | ")
                     yield Input("1", id="target-lvl", placeholder="Lvl")
+                with Horizontal(classes="xp-label-fields"):
+                    yield Label("XP", classes="field")
+                    yield Label("", classes="spacer")
+                    yield Label("LVL", classes="field")
+                
             
             with Vertical(classes="xp-group"):
                 yield Label("0 Actions selected", id="actions-counter")
                 yield Static(id="agg-card-slot")
-                # yield Label("Aggregate")
-                # with Horizontal(classes="xp-row"):
-                #     yield Label("Actions:\t", id="agg-actions-label")
-                #     yield Label("0", id="actions-counter")
-                #     yield Label("selected")
-                # yield Static(id="agg-card-slot")
 
         # --- Body ---
         with Horizontal(id="calc-body"):
@@ -216,8 +225,6 @@ class CalculatorScreen(Screen):
         table: DataTable = self.query_one("#results-table", DataTable)
         table.add_columns("Method", "Actions Needed", "Total XP", "Inputs / action", "Tools")
 
-        # self._load_skill(self._initial_skill)
-
         if self._player:
             skill = self._player.skills.get(self._initial_skill)
             if skill:
@@ -228,20 +235,14 @@ class CalculatorScreen(Screen):
     # ---------------
 
     def on_select_changed(self, event: Select.Changed) -> None:
-        # self._syncing = True
         if event.select.id == "skill-select":
             skill = str(event.value)
             self._load_skill(skill)
             if self._player:
-                # self._syncing = True
                 s = self._player.skills.get(skill)
                 if s:
-                    self.query_one("#start-xp", Input).value = "0"
-                    self.query_one("#start-lvl",Input).value = "1"
-                    # self._syncing = False
                     self._set_start_xp(s.xp)
         
-            
     
     def _load_skill(self, skill: str) -> None:
         self._all_actions = load_actions(skill)
@@ -250,40 +251,59 @@ class CalculatorScreen(Screen):
         for action in sorted(self._all_actions, key=lambda a: a.level_req):
             lbl = f"[{action.level_req}] {action.name}"
             scroll.mount(Checkbox(lbl, id=f"action-{action.name.lower().replace(' ', '-')}", classes="action-check"))
-            # scroll.mount(cb)
+        aggslot = self.query_one("#agg-card-slot", Static)
+        aggslot.remove_children()
 
     # ----------------
     # XP <-> Level sync (two way)
     # -----------------
 
-    # def on_input_changed(self, event: Input.Changed) -> None:
-    def on_input_submitted(self, event: Input.Sumitted) -> None:
+    def on_input_changed(self, event: Input.Changed) -> None:
         iid = event.input.id
         try:
             val = int(event.value)
         except ValueError:
             return
         
-        # Suppress recursive callbacks with a guard flag
+        self._sync_fields(iid, val)
+
+    def _sync_fields(self, changed_id: str, val: int) -> None:
+        inputs = [
+            "start-xp",
+            "start-lvl",
+            "target-xp",
+            "target-lvl",
+        ]
+        fields_updated = [
+            self.query_one("#start-lvl", Input),
+            self.query_one("#start-xp", Input),
+            self.query_one("#target-lvl", Input),
+            self.query_one("#target-xp", Input)
+        ]
+
         if getattr(self, "_syncing", False):
             return
+        if changed_id not in inputs:
+            return
         self._syncing = True
+        linked_field = fields_updated[inputs.index(changed_id)]
         try:
-            if iid == "start-xp":
-                self.query_one("#start-lvl", Input).value = str(CalcSession._xp_to_level(val))
-            elif iid == "start-lvl":
-                self.query_one("#start-xp", Input).value = str(CalcSession._level_to_xp(val))
-            elif iid == "target-xp":
-                self.query_one("#target-lvl", Input).value = str(CalcSession._xp_to_level(val))
-            elif iid == "target-lvl":
-                self.query_one("#target-xp", Input).value = str(CalcSession._level_to_xp(val))
-
+            if changed_id in ("start-xp", "target-xp"):
+                linkedval = str(CalcSession._xp_to_level(val))
+            elif changed_id in ("start-lvl", "target-lvl"):
+                linkedval = str(CalcSession._level_to_xp(val))
+            with linked_field.prevent(Input.Changed):
+                linked_field.value = linkedval
         finally:
             self._syncing = False
         
     def _set_start_xp(self, xp: int) -> None:
-        self.query_one("#start-xp", Input).value = str(xp)
-        self.query_one("#start-lvl", Input).value = str(CalcSession._xp_to_level(xp))
+        start_xp = self.query_one("#start-xp", Input)
+        start_lvl = self.query_one("#start-lvl", Input)
+        with start_xp.prevent(Input.Changed):
+            start_xp.value = str(xp)
+        with start_lvl.prevent(Input.Changed):
+            start_lvl.value = str(CalcSession._xp_to_level(xp))
 
     # --------------
     # Calculate
@@ -367,6 +387,7 @@ class CalculatorScreen(Screen):
             )
         
         aggslot = self.query_one("#agg-card-slot", Static)
+        aggslot.remove_children()
         aggslot.mount(
             StatCard(
                 title=f"Needed [{session.aggregate_xp:,} XP]",

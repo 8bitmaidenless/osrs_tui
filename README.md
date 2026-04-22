@@ -8,9 +8,36 @@ A package for doing great things!
 $ pip install osrs_tui
 ```
 
+> **NOTE**: If you would like to run this application from the terminal, you will need to perform a system wide installation:
+```bash
+$ sudo pip install osrs_tui
+```
+
 ## Usage
 
-- TODO
+There are two viable options for launching this application. 
+
+### Terminal Command (Easy)
+
+```bash
+$ osrs-tui
+```
+
+### Importing the toplevel module directly (Hard*er*)
+
+The above terminal command is essentially the same as executing the following:
+```bash
+$ python -m osrs_tui
+```
+
+### Navigating the App
+
+The initial home screen will give you a single text-input field and a dropdown selection field for your *username* and *account type*. Enter your character's information here and submit to get a detailed view of your skills and their stats. 
+
+From here (the **Skills Screen**), you can press the "C" key to launch the Skill Calculator screen.
+
+> Press Ctrl+Q at any time to quit.
+
 
 ## Contributing
 
