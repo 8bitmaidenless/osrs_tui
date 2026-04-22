@@ -267,3 +267,5 @@ def _fetch_hiscore(username: str) -> tuple[str, list[dict]]:
         except Exception as err:
             last_err = err
     raise last_err or requests.HTTPError(f"<_fetch_hiscore error> User '{username}' not found.")
+
+_XP_TABLE = [_xp_for_level(i) for i in range(1, 100)]
