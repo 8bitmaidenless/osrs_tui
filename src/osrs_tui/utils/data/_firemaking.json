@@ -1,0 +1,30 @@
+[
+    {
+        "name": "Burn logs",
+        "level_req": 1,
+        "xp": 40.0,
+        "members": false,
+        "inputs": [
+            {
+                "name": "Logs",
+                "qty": 1,
+                "stackable": false
+            }
+        ],
+        "tools": [
+            {
+                "name": "Tinderbox",
+                "qty": 1,
+                "level_req": 1
+            }
+        ],
+        "outputs": [
+            {
+                "name": "Ashes",
+                "qty": 1,
+                "rarity": 1.0,
+                "stackable": false
+            }
+        ]
+    }
+]

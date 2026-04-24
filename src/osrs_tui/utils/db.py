@@ -255,3 +255,104 @@ def get_ge_monthly_flow(username: str) -> list[dict]:
         (username,)
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+# GE REesource screen
+
+def _ensure_resource_tables(conn: sqlite3.Connection) -> None:
+    sql_path = SQL_PATH / "ge_schema.sql"
+    with open(sql_path, "r") as file:
+        sql = file.read()
+    conn.executescript(sql)
+    conn.commit()
+
+
+_orig_create_schema = _create_schema # type: ignore[name-defined]
+
+
+def _create_schema(conn: sqlite3.Connection) -> None: # type: ignore[no-redef]
+    _orig_create_schema(conn)
+    _ensure_resource_tables(conn)
+
+
+def ge_save_item(item_id: int, item_name: str, note: str = "") -> None:
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO ge_saved_items (item_id, item_name, note, tagged_at)
+           VALUES (?,?,?,?)
+           ON CONFLICT(item_id) DO UPDATE SET note=excluded.note""",
+        (item_id, item_name, note, _now())
+    )
+    conn.commit()
+
+
+def ge_unsave_item(item_id: int) -> None:
+    conn = get_db()
+    conn.execute("DELETE FROM ge_saved_items WHERE item_id=?", (item_id,))
+    conn.commit()
+
+
+def ge_get_saved_items() -> list[sqlite3.Row]:
+    return get_db().execute(
+        "SELECT * FROM ge_saved_items ORDER BY tagged_at DESC"
+    ).fetchall()
+
+
+def ge_is_saved(item_id: int) -> bool:
+    row = get_db().execute(
+        "SELECT 1 FROM ge_saved_items WHERE item_id=?", (item_id,)
+    ).fetchone()
+    return row is not None
+
+
+def ge_create_list(list_name: str, list_type: str) -> int:
+    conn = get_db()
+    cur = conn.execute(
+        "INSERT INTO ge_price_lists (list_name, list_type, created_at) VALUES (?,?,?)",
+        (list_name, list_type, _now())
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def ge_get_lists() -> list[sqlite3.Row]:
+    return get_db().execute(
+        "SELECT * FROM ge_price_lists ORDER BY list_type, list_name"
+    ).fetchall()
+
+
+def ge_delete_list(list_id: int) -> None:
+    conn = get_db()
+    conn.execute("DELETE FROM ge_price_lists WHERE id=?", (list_id,))
+    conn.commit()
+
+
+def ge_add_list_item(
+    list_id: int,
+    item_id: int,
+    item_name: str,
+    quantity: int = 1,
+    pinned_price: Optional[int] = None
+) -> int:
+    conn = get_db()
+    cur = conn.execute(
+        """INSERT INTO ge_list_items
+           (list_id, item_id, item_name, quantity, pinned_price, added_at)
+           VALUES (?,?,?,?,?,?)""",
+        (list_id, item_id, item_name, quantity, pinned_price, _now())
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def ge_remove_list_item(item_row_id: int) -> None:
+    conn = get_db()
+    conn.execute("DELETE FROM ge_list_items WHERE id=?", (item_row_id,))
+    conn.commit()
+
+
+def ge_get_list_items(list_id: int) -> list[sqlite3.Row]:
+    return get_db().execute(
+        "SELECT * FROM ge_list_items WHERE list_id=? ORDER BY added_at ASC",
+        (list_id,)
+    ).fetchall()
