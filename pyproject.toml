@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "osrs_tui"
-version = "0.2.4"
+version = "0.3.0"
 description = "A package for doing great things!"
 authors = ["Dylan Garrett"]
 license = "MIT"
